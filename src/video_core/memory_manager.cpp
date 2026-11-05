@@ -318,8 +318,14 @@ void MemoryManager::Write(GPUVAddr addr, T data) {
         std::memcpy(page_pointer, &data, sizeof(T));
         return;
     }
+    if (Tegra::Nx2InSparseRegion(addr, sizeof(T))) {
+        return;
+    }
 
-    ASSERT(false);
+    static std::atomic<u32> reported{};
+    if (reported.fetch_add(1) < 16) {
+        LOG_ERROR(HW_GPU, "Write{} of unmapped GPU address {:#x}", sizeof(T) * 8, addr);
+    }
 }
 
 template u8 MemoryManager::Read<u8>(GPUVAddr addr) const;

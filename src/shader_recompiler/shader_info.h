@@ -192,6 +192,7 @@ struct TextureBufferDescriptor {
     /// Index in Info::handle_programs when the handle is computed at draw time (read from a
     /// storage buffer), ~0 when it is the constant buffer word.
     u32 handle_program{~0U};
+    TexturePixelFormat pixel_format{TexturePixelFormat::A8B8G8R8_UNORM};
 
     auto operator<=>(const TextureBufferDescriptor&) const = default;
 };
@@ -209,6 +210,7 @@ struct ImageBufferDescriptor {
     /// Index in Info::handle_programs when the handle is computed at draw time (read from a
     /// storage buffer), ~0 when it is the constant buffer word.
     u32 handle_program{~0U};
+    TexturePixelFormat pixel_format{TexturePixelFormat::A8B8G8R8_UNORM};
 
     auto operator<=>(const ImageBufferDescriptor&) const = default;
 };
@@ -231,6 +233,7 @@ struct TextureDescriptor {
     /// Index in Info::handle_programs when the handle is computed at draw time (read from a
     /// storage buffer), ~0 when it is the constant buffer word above.
     u32 handle_program{~0U};
+    TexturePixelFormat pixel_format{TexturePixelFormat::A8B8G8R8_UNORM};
 
     auto operator<=>(const TextureDescriptor&) const = default;
 };
@@ -250,6 +253,7 @@ struct ImageDescriptor {
     /// Index in Info::handle_programs when the handle is computed at draw time (read from a
     /// storage buffer), ~0 when it is the constant buffer word.
     u32 handle_program{~0U};
+    TexturePixelFormat pixel_format{TexturePixelFormat::A8B8G8R8_UNORM};
 
     auto operator<=>(const ImageDescriptor&) const = default;
 };

@@ -25,6 +25,12 @@ std::string Image(EmitContext& ctx, const IR::TextureInstInfo& info, const IR::V
     return fmt::format("img{}{}", def.binding, index_offset);
 }
 
+bool IsImageInteger(EmitContext& ctx, const IR::TextureInstInfo& info) {
+    const auto def{info.type == TextureType::Buffer ? ctx.image_buffers.at(info.descriptor_index)
+                                                    : ctx.images.at(info.descriptor_index)};
+    return def.is_integer;
+}
+
 bool IsTextureMsaa(EmitContext& ctx, const IR::TextureInstInfo& info) {
     if (info.type == TextureType::Buffer) {
         return false;
@@ -578,14 +584,22 @@ void EmitImageRead(EmitContext& ctx, IR::Inst& inst, const IR::Value& index,
         throw NotImplementedException("EmitImageRead Sparse");
     }
     const auto image{Image(ctx, info, index)};
-    ctx.AddU32x4("{}=uvec4(imageLoad({},{}));", inst, image, CoordsCastToInt(coords, info));
+    if (IsImageInteger(ctx, info)) {
+        ctx.AddU32x4("{}=uvec4(imageLoad({},{}));", inst, image, CoordsCastToInt(coords, info));
+    } else {
+        ctx.AddU32x4("{}=ftou(imageLoad({},{}));", inst, image, CoordsCastToInt(coords, info));
+    }
 }
 
 void EmitImageWrite(EmitContext& ctx, IR::Inst& inst, const IR::Value& index,
                     std::string_view coords, std::string_view color) {
     const auto info{inst.Flags<IR::TextureInstInfo>()};
     const auto image{Image(ctx, info, index)};
-    ctx.Add("imageStore({},{},{});", image, CoordsCastToInt(coords, info), color);
+    if (IsImageInteger(ctx, info)) {
+        ctx.Add("imageStore({},{},{});", image, CoordsCastToInt(coords, info), color);
+    } else {
+        ctx.Add("imageStore({},{},utof({}));", image, CoordsCastToInt(coords, info), color);
+    }
 }
 
 void EmitImageAtomicIAdd32(EmitContext& ctx, IR::Inst& inst, const IR::Value& index,

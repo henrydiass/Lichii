@@ -4393,7 +4393,7 @@ VkImageView ImageView::StorageView(Shader::TextureType texture_type,
     if (image_handle) {
         if (image_format == Shader::ImageFormat::Typeless) {
             if (!typeless_storage_view) {
-                auto info = MaxwellToVK::SurfaceFormat(*device, FormatType::Optimal, true, format);
+                auto info = MaxwellToVK::SurfaceFormat(*device, FormatType::Optimal, false, format);
                 typeless_storage_view = MakeView(info.format, VK_IMAGE_ASPECT_COLOR_BIT, texture_type);
             }
             return *typeless_storage_view;

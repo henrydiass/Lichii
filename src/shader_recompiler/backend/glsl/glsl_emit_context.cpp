@@ -112,7 +112,30 @@ std::string_view ColorSamplerType(TextureType type, bool is_multisample = false)
     }
 }
 
-std::string_view ImageType(TextureType type) {
+std::string_view ImageType(TextureType type, bool is_integer) {
+    switch (type) {
+    case TextureType::Color1D:
+        return is_integer ? "uimage1D" : "image1D";
+    case TextureType::ColorArray1D:
+        return is_integer ? "uimage1DArray" : "image1DArray";
+    case TextureType::Color2D:
+        return is_integer ? "uimage2D" : "image2D";
+    case TextureType::ColorArray2D:
+        return is_integer ? "uimage2DArray" : "image2DArray";
+    case TextureType::Color3D:
+        return is_integer ? "uimage3D" : "image3D";
+    case TextureType::ColorCube:
+        return is_integer ? "uimageCube" : "imageCube";
+    case TextureType::ColorArrayCube:
+        return is_integer ? "uimageCubeArray" : "imageCubeArray";
+    case TextureType::Buffer:
+        return is_integer ? "uimageBuffer" : "imageBuffer";
+    default:
+        throw NotImplementedException("Image type: {}", type);
+    }
+}
+
+[[maybe_unused]] std::string_view ImageTypeUnused(TextureType type) {
     switch (type) {
     case TextureType::Color1D:
         return "uimage1D";
@@ -135,7 +158,128 @@ std::string_view ImageType(TextureType type) {
     }
 }
 
-std::string_view ImageFormatString(ImageFormat format) {
+std::string_view GetPixelImageFormatString(TexturePixelFormat format, bool is_integer) {
+    if (is_integer) {
+        switch (format) {
+        case TexturePixelFormat::A8B8G8R8_SINT:
+        case TexturePixelFormat::A8B8G8R8_UINT:
+            return ",rgba8ui";
+        case TexturePixelFormat::A2B10G10R10_UINT:
+            return ",rgb10_a2ui";
+        case TexturePixelFormat::R8_SINT:
+        case TexturePixelFormat::R8_UINT:
+        case TexturePixelFormat::S8_UINT:
+            return ",r8ui";
+        case TexturePixelFormat::R16G16B16A16_SINT:
+        case TexturePixelFormat::R16G16B16A16_UINT:
+            return ",rgba16ui";
+        case TexturePixelFormat::R32G32B32A32_SINT:
+        case TexturePixelFormat::R32G32B32A32_UINT:
+            return ",rgba32ui";
+        case TexturePixelFormat::R32G32_SINT:
+        case TexturePixelFormat::R32G32_UINT:
+            return ",rg32ui";
+        case TexturePixelFormat::R32_SINT:
+        case TexturePixelFormat::R32_UINT:
+            return ",r32ui";
+        case TexturePixelFormat::R16_SINT:
+        case TexturePixelFormat::R16_UINT:
+            return ",r16ui";
+        case TexturePixelFormat::R16G16_SINT:
+        case TexturePixelFormat::R16G16_UINT:
+            return ",rg16ui";
+        case TexturePixelFormat::R8G8_SINT:
+        case TexturePixelFormat::R8G8_UINT:
+            return ",rg8ui";
+        default:
+            return ",r32ui";
+        }
+    }
+    switch (format) {
+    case TexturePixelFormat::A8B8G8R8_UNORM:
+    case TexturePixelFormat::B8G8R8A8_UNORM:
+    case TexturePixelFormat::A8B8G8R8_SRGB:
+    case TexturePixelFormat::B8G8R8A8_SRGB:
+        return ",rgba8";
+    case TexturePixelFormat::A8B8G8R8_SNORM:
+        return ",rgba8_snorm";
+    case TexturePixelFormat::A2B10G10R10_UNORM:
+    case TexturePixelFormat::A2R10G10B10_UNORM:
+        return ",rgb10_a2";
+    case TexturePixelFormat::R8_UNORM:
+        return ",r8";
+    case TexturePixelFormat::R8_SNORM:
+        return ",r8_snorm";
+    case TexturePixelFormat::R16G16B16A16_FLOAT:
+    case TexturePixelFormat::R16G16B16X16_FLOAT:
+        return ",rgba16f";
+    case TexturePixelFormat::R16G16B16A16_UNORM:
+        return ",rgba16";
+    case TexturePixelFormat::R16G16B16A16_SNORM:
+        return ",rgba16_snorm";
+    case TexturePixelFormat::B10G11R11_FLOAT:
+        return ",r11f_g11f_b10f";
+    case TexturePixelFormat::R32G32B32A32_FLOAT:
+    case TexturePixelFormat::R32G32B32_FLOAT:
+        return ",rgba32f";
+    case TexturePixelFormat::R32G32_FLOAT:
+        return ",rg32f";
+    case TexturePixelFormat::R32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT_S8_UINT:
+        return ",r32f";
+    case TexturePixelFormat::R16_FLOAT:
+        return ",r16f";
+    case TexturePixelFormat::R16_UNORM:
+    case TexturePixelFormat::D16_UNORM:
+        return ",r16";
+    case TexturePixelFormat::R16_SNORM:
+        return ",r16_snorm";
+    case TexturePixelFormat::R16G16_UNORM:
+        return ",rg16";
+    case TexturePixelFormat::R16G16_FLOAT:
+        return ",rg16f";
+    case TexturePixelFormat::R16G16_SNORM:
+        return ",rg16_snorm";
+    case TexturePixelFormat::R8G8_UNORM:
+    case TexturePixelFormat::G4R4_UNORM:
+        return ",rg8";
+    case TexturePixelFormat::R8G8_SNORM:
+        return ",rg8_snorm";
+    default:
+        return ",rgba8";
+    }
+}
+
+std::string_view ImageFormatString(const Profile& profile, ImageFormat format,
+                                   TexturePixelFormat pixel_format, bool is_read,
+                                   bool is_integer) {
+    switch (format) {
+    case ImageFormat::Typeless:
+        if (profile.support_typeless_image_loads && is_read) {
+            return "";
+        }
+        return GetPixelImageFormatString(pixel_format, is_integer);
+    case ImageFormat::R8_UINT:
+        return ",r8ui";
+    case ImageFormat::R8_SINT:
+        return ",r8i";
+    case ImageFormat::R16_UINT:
+        return ",r16ui";
+    case ImageFormat::R16_SINT:
+        return ",r16i";
+    case ImageFormat::R32_UINT:
+        return ",r32ui";
+    case ImageFormat::R32G32_UINT:
+        return ",rg32ui";
+    case ImageFormat::R32G32B32A32_UINT:
+        return ",rgba32ui";
+    default:
+        throw NotImplementedException("Image format: {}", format);
+    }
+}
+
+[[maybe_unused]] std::string_view ImageFormatStringUnused(ImageFormat format) {
     switch (format) {
     case ImageFormat::Typeless:
         return "";
@@ -424,7 +568,7 @@ void EmitContext::SetupExtensions() {
     if (info.stores[IR::Attribute::ViewportMask] && profile.support_viewport_mask) {
         header += "#extension GL_NV_viewport_array2 : enable\n";
     }
-    if (info.uses_typeless_image_reads) {
+    if (info.uses_typeless_image_reads && profile.support_typeless_image_loads) {
         header += "#extension GL_EXT_shader_image_load_formatted : enable\n";
     }
     if (info.uses_derivatives && profile.support_gl_derivative_control) {
@@ -668,20 +812,21 @@ void EmitContext::SetupImages(Bindings& bindings) {
     const std::string_view coherent{info.requires_coherent_image_memory ? "coherent " : ""};
     image_buffers.reserve(info.image_buffer_descriptors.size());
     for (const auto& desc : info.image_buffer_descriptors) {
-        image_buffers.push_back({bindings.image, desc.count});
-        const auto format{ImageFormatString(desc.format)};
+        image_buffers.push_back({bindings.image, desc.count, desc.is_integer});
+        const auto format{ImageFormatString(profile, desc.format, desc.pixel_format, desc.is_read, desc.is_integer)};
         const auto qualifier{ImageAccessQualifier(desc.is_written, desc.is_read)};
         const auto array_decorator{desc.count > 1 ? fmt::format("[{}]", desc.count) : ""};
-        header += fmt::format("layout(binding={}{}) uniform {}{}uimageBuffer img{}{};",
-                              bindings.image, format, coherent, qualifier, bindings.image,
-                              array_decorator);
+        const auto image_type{ImageType(TextureType::Buffer, desc.is_integer)};
+        header += fmt::format("layout(binding={}{}) uniform {}{}{} img{}{};", bindings.image, format, coherent, qualifier, image_type, bindings.image, array_decorator); //
+                              //
+                              //
         bindings.image += desc.count;
     }
     images.reserve(info.image_descriptors.size());
     for (const auto& desc : info.image_descriptors) {
-        images.push_back({bindings.image, desc.count});
-        const auto format{ImageFormatString(desc.format)};
-        const auto image_type{ImageType(desc.type)};
+        images.push_back({bindings.image, desc.count, desc.is_integer});
+        const auto format{ImageFormatString(profile, desc.format, desc.pixel_format, desc.is_read, desc.is_integer)};
+        const auto image_type{ImageType(desc.type, desc.is_integer)};
         const auto qualifier{ImageAccessQualifier(desc.is_written, desc.is_read)};
         const auto array_decorator{desc.count > 1 ? fmt::format("[{}]", desc.count) : ""};
         header += fmt::format("layout(binding={}{})uniform {}{}{} img{}{};", bindings.image, format,

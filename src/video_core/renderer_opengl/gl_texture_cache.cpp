@@ -1227,7 +1227,7 @@ GLuint ImageView::StorageView(Shader::TextureType texture_type, Shader::ImageFor
                                    format, type, num_samples, range.extent.layers,
                                    range.extent.levels, size.width, size.height, size.depth);
     }
-    if (image_format == Shader::ImageFormat::Typeless)
+    if (image_format == Shader::ImageFormat::Typeless) { if (internal_format != GL_SRGB8_ALPHA8) return Handle(texture_type); if (!storage_views) storage_views = {OpenGL::ImageView::StorageViews{}}; auto& type_views{storage_views->formats[static_cast<size_t>(image_format)]}; GLuint& view{type_views[size_t(texture_type)]}; if (view == 0) view = MakeView(texture_type, GL_RGBA8); return view; } if (false)
         return Handle(texture_type);
     if (!storage_views)
         storage_views = {OpenGL::ImageView::StorageViews{}};

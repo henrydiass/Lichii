@@ -57,7 +57,272 @@ Id ImageType(EmitContext& ctx, const TextureDescriptor& desc) {
     throw InvalidArgument("Invalid texture type {}", desc.type);
 }
 
-spv::ImageFormat GetImageFormat(ImageFormat format) {
+bool NeedsExtendedImageFormatCapability(spv::ImageFormat format) {
+    switch (format) {
+    case spv::ImageFormat::Unknown:
+    case spv::ImageFormat::Rgba32f:
+    case spv::ImageFormat::Rgba16f:
+    case spv::ImageFormat::R32f:
+    case spv::ImageFormat::Rgba8:
+    case spv::ImageFormat::Rgba8Snorm:
+    case spv::ImageFormat::Rgba32i:
+    case spv::ImageFormat::Rgba16i:
+    case spv::ImageFormat::Rgba8i:
+    case spv::ImageFormat::R32i:
+    case spv::ImageFormat::Rgba32ui:
+    case spv::ImageFormat::Rgba16ui:
+    case spv::ImageFormat::Rgba8ui:
+    case spv::ImageFormat::R32ui:
+        return false;
+    default:
+        return true;
+    }
+}
+
+spv::ImageFormat GetPixelImageFormat(TexturePixelFormat format, bool is_integer) {
+    if (is_integer) {
+        switch (format) {
+        case TexturePixelFormat::A8B8G8R8_SINT:
+        case TexturePixelFormat::A8B8G8R8_UINT:
+            return spv::ImageFormat::Rgba8ui;
+        case TexturePixelFormat::A2B10G10R10_UINT:
+            return spv::ImageFormat::Rgb10A2ui;
+        case TexturePixelFormat::R8_SINT:
+        case TexturePixelFormat::R8_UINT:
+        case TexturePixelFormat::S8_UINT:
+            return spv::ImageFormat::R8ui;
+        case TexturePixelFormat::R16G16B16A16_SINT:
+        case TexturePixelFormat::R16G16B16A16_UINT:
+            return spv::ImageFormat::Rgba16ui;
+        case TexturePixelFormat::R32G32B32A32_SINT:
+        case TexturePixelFormat::R32G32B32A32_UINT:
+            return spv::ImageFormat::Rgba32ui;
+        case TexturePixelFormat::R32G32_SINT:
+        case TexturePixelFormat::R32G32_UINT:
+            return spv::ImageFormat::Rg32ui;
+        case TexturePixelFormat::R32_SINT:
+        case TexturePixelFormat::R32_UINT:
+            return spv::ImageFormat::R32ui;
+        case TexturePixelFormat::R16_SINT:
+        case TexturePixelFormat::R16_UINT:
+            return spv::ImageFormat::R16ui;
+        case TexturePixelFormat::R16G16_SINT:
+        case TexturePixelFormat::R16G16_UINT:
+            return spv::ImageFormat::Rg16ui;
+        case TexturePixelFormat::R8G8_SINT:
+        case TexturePixelFormat::R8G8_UINT:
+            return spv::ImageFormat::Rg8ui;
+        default:
+            return spv::ImageFormat::R32ui;
+        }
+    }
+    switch (format) {
+    case TexturePixelFormat::A8B8G8R8_UNORM:
+    case TexturePixelFormat::B8G8R8A8_UNORM:
+    case TexturePixelFormat::A8B8G8R8_SRGB:
+    case TexturePixelFormat::B8G8R8A8_SRGB:
+        return spv::ImageFormat::Rgba8;
+    case TexturePixelFormat::A8B8G8R8_SNORM:
+        return spv::ImageFormat::Rgba8Snorm;
+    case TexturePixelFormat::A2B10G10R10_UNORM:
+    case TexturePixelFormat::A2R10G10B10_UNORM:
+        return spv::ImageFormat::Rgb10A2;
+    case TexturePixelFormat::R8_UNORM:
+        return spv::ImageFormat::R8;
+    case TexturePixelFormat::R8_SNORM:
+        return spv::ImageFormat::R8Snorm;
+    case TexturePixelFormat::R16G16B16A16_FLOAT:
+    case TexturePixelFormat::R16G16B16X16_FLOAT:
+        return spv::ImageFormat::Rgba16f;
+    case TexturePixelFormat::R16G16B16A16_UNORM:
+        return spv::ImageFormat::Rgba16;
+    case TexturePixelFormat::R16G16B16A16_SNORM:
+        return spv::ImageFormat::Rgba16Snorm;
+    case TexturePixelFormat::B10G11R11_FLOAT:
+        return spv::ImageFormat::R11fG11fB10f;
+    case TexturePixelFormat::R32G32B32A32_FLOAT:
+    case TexturePixelFormat::R32G32B32_FLOAT:
+        return spv::ImageFormat::Rgba32f;
+    case TexturePixelFormat::R32G32_FLOAT:
+        return spv::ImageFormat::Rg32f;
+    case TexturePixelFormat::R32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT_S8_UINT:
+        return spv::ImageFormat::R32f;
+    case TexturePixelFormat::R16_FLOAT:
+        return spv::ImageFormat::R16f;
+    case TexturePixelFormat::R16_UNORM:
+    case TexturePixelFormat::D16_UNORM:
+        return spv::ImageFormat::R16;
+    case TexturePixelFormat::R16_SNORM:
+        return spv::ImageFormat::R16Snorm;
+    case TexturePixelFormat::R16G16_UNORM:
+        return spv::ImageFormat::Rg16;
+    case TexturePixelFormat::R16G16_FLOAT:
+        return spv::ImageFormat::Rg16f;
+    case TexturePixelFormat::R16G16_SNORM:
+        return spv::ImageFormat::Rg16Snorm;
+    case TexturePixelFormat::R8G8_UNORM:
+    case TexturePixelFormat::G4R4_UNORM:
+        return spv::ImageFormat::Rg8;
+    case TexturePixelFormat::R8G8_SNORM:
+        return spv::ImageFormat::Rg8Snorm;
+    default:
+        return spv::ImageFormat::Rgba8;
+    }
+}
+
+spv::ImageFormat GetImageFormat(EmitContext& ctx, ImageFormat format,
+                                TexturePixelFormat pixel_format, bool is_read,
+                                bool is_integer) {
+    spv::ImageFormat spv_format{spv::ImageFormat::Unknown};
+    if (format == ImageFormat::Typeless) {
+        if (!ctx.profile.support_typeless_image_loads && is_read) {
+            spv_format = GetPixelImageFormat(pixel_format, is_integer);
+        }
+    } else {
+        switch (format) {
+        case ImageFormat::Typeless:
+            break;
+        case ImageFormat::R8_UINT:
+            spv_format = spv::ImageFormat::R8ui;
+            break;
+        case ImageFormat::R8_SINT:
+            spv_format = spv::ImageFormat::R8i;
+            break;
+        case ImageFormat::R16_UINT:
+            spv_format = spv::ImageFormat::R16ui;
+            break;
+        case ImageFormat::R16_SINT:
+            spv_format = spv::ImageFormat::R16i;
+            break;
+        case ImageFormat::R32_UINT:
+            spv_format = spv::ImageFormat::R32ui;
+            break;
+        case ImageFormat::R32G32_UINT:
+            spv_format = spv::ImageFormat::Rg32ui;
+            break;
+        case ImageFormat::R32G32B32A32_UINT:
+            spv_format = spv::ImageFormat::Rgba32ui;
+            break;
+        default:
+            throw InvalidArgument("Invalid image format {}", format);
+        }
+    }
+    if (NeedsExtendedImageFormatCapability(spv_format)) {
+        ctx.AddCapability(spv::Capability::StorageImageExtendedFormats);
+    }
+    return spv_format;
+}
+
+[[maybe_unused]] spv::ImageFormat GetPixelImageFormatUnused(TexturePixelFormat format, bool is_integer) {
+    switch (format) {
+    case TexturePixelFormat::A8B8G8R8_UNORM:
+    case TexturePixelFormat::B8G8R8A8_UNORM:
+    case TexturePixelFormat::A8B8G8R8_SRGB:
+    case TexturePixelFormat::B8G8R8A8_SRGB:
+        return spv::ImageFormat::Rgba8;
+    case TexturePixelFormat::A8B8G8R8_SNORM:
+        return spv::ImageFormat::Rgba8Snorm;
+    case TexturePixelFormat::A8B8G8R8_SINT:
+        return spv::ImageFormat::Rgba8i;
+    case TexturePixelFormat::A8B8G8R8_UINT:
+        return spv::ImageFormat::Rgba8ui;
+    case TexturePixelFormat::A2B10G10R10_UNORM:
+    case TexturePixelFormat::A2R10G10B10_UNORM:
+        return spv::ImageFormat::Rgb10A2;
+    case TexturePixelFormat::A2B10G10R10_UINT:
+        return spv::ImageFormat::Rgb10A2ui;
+    case TexturePixelFormat::R8_UNORM:
+        return spv::ImageFormat::R8;
+    case TexturePixelFormat::R8_SNORM:
+        return spv::ImageFormat::R8Snorm;
+    case TexturePixelFormat::R8_SINT:
+        return spv::ImageFormat::R8i;
+    case TexturePixelFormat::R8_UINT:
+    case TexturePixelFormat::S8_UINT:
+        return spv::ImageFormat::R8ui;
+    case TexturePixelFormat::R16G16B16A16_FLOAT:
+    case TexturePixelFormat::R16G16B16X16_FLOAT:
+        return spv::ImageFormat::Rgba16f;
+    case TexturePixelFormat::R16G16B16A16_UNORM:
+        return spv::ImageFormat::Rgba16;
+    case TexturePixelFormat::R16G16B16A16_SNORM:
+        return spv::ImageFormat::Rgba16Snorm;
+    case TexturePixelFormat::R16G16B16A16_SINT:
+        return spv::ImageFormat::Rgba16i;
+    case TexturePixelFormat::R16G16B16A16_UINT:
+        return spv::ImageFormat::Rgba16ui;
+    case TexturePixelFormat::B10G11R11_FLOAT:
+        return spv::ImageFormat::R11fG11fB10f;
+    case TexturePixelFormat::R32G32B32A32_UINT:
+        return spv::ImageFormat::Rgba32ui;
+    case TexturePixelFormat::R32G32B32A32_FLOAT:
+    case TexturePixelFormat::R32G32B32_FLOAT:
+        return spv::ImageFormat::Rgba32f;
+    case TexturePixelFormat::R32G32B32A32_SINT:
+        return spv::ImageFormat::Rgba32i;
+    case TexturePixelFormat::R32G32_FLOAT:
+        return spv::ImageFormat::Rg32f;
+    case TexturePixelFormat::R32G32_SINT:
+        return spv::ImageFormat::Rg32i;
+    case TexturePixelFormat::R32G32_UINT:
+        return spv::ImageFormat::Rg32ui;
+    case TexturePixelFormat::R32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT:
+    case TexturePixelFormat::D32_FLOAT_S8_UINT:
+        return spv::ImageFormat::R32f;
+    case TexturePixelFormat::R32_UINT:
+        return spv::ImageFormat::R32ui;
+    case TexturePixelFormat::R32_SINT:
+        return spv::ImageFormat::R32i;
+    case TexturePixelFormat::R16_FLOAT:
+        return spv::ImageFormat::R16f;
+    case TexturePixelFormat::R16_UNORM:
+    case TexturePixelFormat::D16_UNORM:
+        return spv::ImageFormat::R16;
+    case TexturePixelFormat::R16_SNORM:
+        return spv::ImageFormat::R16Snorm;
+    case TexturePixelFormat::R16_UINT:
+        return spv::ImageFormat::R16ui;
+    case TexturePixelFormat::R16_SINT:
+        return spv::ImageFormat::R16i;
+    case TexturePixelFormat::R16G16_UNORM:
+        return spv::ImageFormat::Rg16;
+    case TexturePixelFormat::R16G16_FLOAT:
+        return spv::ImageFormat::Rg16f;
+    case TexturePixelFormat::R16G16_UINT:
+        return spv::ImageFormat::Rg16ui;
+    case TexturePixelFormat::R16G16_SINT:
+        return spv::ImageFormat::Rg16i;
+    case TexturePixelFormat::R16G16_SNORM:
+        return spv::ImageFormat::Rg16Snorm;
+    case TexturePixelFormat::R8G8_UNORM:
+    case TexturePixelFormat::G4R4_UNORM:
+        return spv::ImageFormat::Rg8;
+    case TexturePixelFormat::R8G8_SNORM:
+        return spv::ImageFormat::Rg8Snorm;
+    case TexturePixelFormat::R8G8_SINT:
+        return spv::ImageFormat::Rg8i;
+    case TexturePixelFormat::R8G8_UINT:
+        return spv::ImageFormat::Rg8ui;
+    default:
+        return is_integer ? spv::ImageFormat::R32ui : spv::ImageFormat::Rgba8;
+    }
+}
+
+[[maybe_unused]] spv::ImageFormat GetImageFormatUnused(const EmitContext& ctx, ImageFormat format, bool is_read,
+                                bool is_integer) {
+    if (format == ImageFormat::Typeless || (static_cast<u32>(format) & 0x100U) != 0) {
+        if (ctx.profile.support_typeless_image_loads || !is_read) {
+            return spv::ImageFormat::Unknown;
+        }
+        const auto pixel_format{
+            (static_cast<u32>(format) & 0x100U) != 0
+                ? static_cast<TexturePixelFormat>(static_cast<u32>(format) & 0xFFU)
+                : TexturePixelFormat::A8B8G8R8_UNORM};
+        return GetPixelImageFormat(pixel_format, is_integer);
+    }
     switch (format) {
     case ImageFormat::Typeless:
         return spv::ImageFormat::Unknown;
@@ -80,7 +345,8 @@ spv::ImageFormat GetImageFormat(ImageFormat format) {
 }
 
 Id ImageType(EmitContext& ctx, const ImageDescriptor& desc, Id sampled_type) {
-    const spv::ImageFormat format{GetImageFormat(desc.format)};
+    const spv::ImageFormat format{
+        GetImageFormat(ctx, desc.format, desc.pixel_format, desc.is_read, desc.is_integer)};
     switch (desc.type) {
     case TextureType::Color1D:
         return ctx.TypeImage(sampled_type, spv::Dim::Dim1D, false, false, false, 2, format);
@@ -1447,7 +1713,8 @@ void EmitContext::DefineTextureBuffers(const Info& info, u32& binding) {
 void EmitContext::DefineImageBuffers(const Info& info, u32& binding) {
     image_buffers.reserve(info.image_buffer_descriptors.size());
     for (const ImageBufferDescriptor& desc : info.image_buffer_descriptors) {
-        const spv::ImageFormat format{GetImageFormat(desc.format)};
+        const spv::ImageFormat format{
+            GetImageFormat(*this, desc.format, desc.pixel_format, desc.is_read, desc.is_integer)};
         const Id sampled_type{desc.is_integer ? U32[1] : F32[1]};
         const Id image_type{
             TypeImage(sampled_type, spv::Dim::Buffer, false, false, false, 2, format)};

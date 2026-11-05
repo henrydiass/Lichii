@@ -38,6 +38,7 @@ struct GenericElementInfo {
 struct TextureImageDefinition {
     u32 binding;
     u32 count;
+    bool is_integer{};
 };
 
 class EmitContext {
