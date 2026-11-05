@@ -86,7 +86,7 @@ spv::ImageFormat GetPixelImageFormat(TexturePixelFormat format, bool is_integer)
         case TexturePixelFormat::A8B8G8R8_UINT:
             return spv::ImageFormat::Rgba8ui;
         case TexturePixelFormat::A2B10G10R10_UINT:
-            return spv::ImageFormat::Rgb10A2ui;
+            return spv::ImageFormat::Rgb10a2ui;
         case TexturePixelFormat::R8_SINT:
         case TexturePixelFormat::R8_UINT:
         case TexturePixelFormat::S8_UINT:
@@ -232,7 +232,7 @@ spv::ImageFormat GetImageFormat(EmitContext& ctx, ImageFormat format,
     case TexturePixelFormat::A2R10G10B10_UNORM:
         return spv::ImageFormat::Rgb10A2;
     case TexturePixelFormat::A2B10G10R10_UINT:
-        return spv::ImageFormat::Rgb10A2ui;
+        return spv::ImageFormat::Rgb10a2ui;
     case TexturePixelFormat::R8_UNORM:
         return spv::ImageFormat::R8;
     case TexturePixelFormat::R8_SNORM:
